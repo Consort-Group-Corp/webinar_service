@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/changeset/V040_create_webinar_schema.sql
+  - include:
+      file: db/changelog/changeset/V041_create_webinar_table.sql
+  - include:
+      file: db/changelog/changeset/V042_create_webinar_participants_table.sql
