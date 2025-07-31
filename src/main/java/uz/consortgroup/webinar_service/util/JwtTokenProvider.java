@@ -37,5 +37,4 @@ public class JwtTokenProvider {
 
         return UUID.fromString(claims.get("userId", String.class));
     }
-
 }

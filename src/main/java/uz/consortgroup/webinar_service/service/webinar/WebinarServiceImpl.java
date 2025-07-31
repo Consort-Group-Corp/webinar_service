@@ -1,6 +1,5 @@
 package uz.consortgroup.webinar_service.service.webinar;
 
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -133,9 +132,6 @@ public class WebinarServiceImpl implements WebinarService {
         webinarRepository.delete(webinar);
         log.info("Webinar deleted: {}", webinarId);
     }
-
-
-
 
     private void updateWebinarFields(WebinarUpdateRequestDto dto, Webinar webinar, String newFilename, String newUrl) {
         webinar.setTitle(dto.getTitle());
