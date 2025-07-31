@@ -28,3 +28,42 @@ spring:
     redis:
       host: localhost
       port: 6386
+
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+logging:
+  level:
+    root: INFO
+    org.springframework: DEBUG
+
+app:
+  preview:
+    base-url: /api/v1/webinars/preview/
+
+security:
+  token: wUIBjx3G1C1Ee+eIXtt/zVIFkS40lhoan0HgHriNERBL08Vv2Bwb92is6gZUGEzANhMXulAPHD9li4TmKrdDoA==
+  expiration: 3600000
+
+storage:
+  base-dir: uploads
+  image:
+    sub-dir: images
+    max-file-size: 100MB
+    allowed-mime-types:
+      - image/jpeg
+      - image/png
+    allowed-extensions:
+      - jpg
+      - jpeg
+      - png
+
+user:
+  service:
+    url: http://localhost:8081
+
+course:
+  service:
+    url: http://localhost:8084
