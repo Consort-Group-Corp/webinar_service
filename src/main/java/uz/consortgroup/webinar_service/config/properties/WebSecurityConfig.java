@@ -14,7 +14,7 @@ import uz.consortgroup.webinar_service.util.AuthTokenFilter;
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
-public class SecurityConfig {
+public class WebSecurityConfig {
 
     private final AuthTokenFilter authTokenFilter;
 
