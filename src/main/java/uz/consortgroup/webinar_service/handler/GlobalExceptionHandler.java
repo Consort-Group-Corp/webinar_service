@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import uz.consortgroup.webinar_service.exception.CourseNotFoundException;
 import uz.consortgroup.webinar_service.exception.FileStorageException;
 import uz.consortgroup.webinar_service.exception.UnauthorizedException;
+import uz.consortgroup.webinar_service.exception.WebinarNotFoundException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -82,5 +83,12 @@ public class GlobalExceptionHandler {
         log.error("Unauthorized: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponse(HttpStatus.UNAUTHORIZED.value(), "Unauthorized", ex.getMessage()));
+    }
+
+    @ExceptionHandler(WebinarNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleWebinarNotFoundException(WebinarNotFoundException ex) {
+        log.error("Webinar not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), "Webinar not found", ex.getMessage()));
     }
 }

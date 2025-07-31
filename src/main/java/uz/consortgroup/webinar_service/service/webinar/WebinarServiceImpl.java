@@ -1,5 +1,6 @@
 package uz.consortgroup.webinar_service.service.webinar;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +11,8 @@ import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarCreateRequestDto;
 import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarUpdateRequestDto;
 import uz.consortgroup.core.api.v1.dto.webinar.response.WebinarResponseDto;
 import uz.consortgroup.webinar_service.entity.Webinar;
+import uz.consortgroup.webinar_service.entity.WebinarParticipant;
+import uz.consortgroup.webinar_service.exception.WebinarNotFoundException;
 import uz.consortgroup.webinar_service.mapper.WebinarMapper;
 import uz.consortgroup.webinar_service.repository.WebinarRepository;
 import uz.consortgroup.webinar_service.security.AuthContext;
@@ -46,6 +49,7 @@ public class WebinarServiceImpl implements WebinarService {
 
         if (file != null && !file.isEmpty()) {
             previewFilename = fileStorageService.store(file);
+            log.info("Got file: name={}, size={}", file.getOriginalFilename(), file.getSize());
             previewUrl = previewBaseUrl + previewFilename;
             log.debug("Preview stored: {}", previewUrl);
         }
@@ -75,14 +79,11 @@ public class WebinarServiceImpl implements WebinarService {
     public WebinarResponseDto updateWebinar(WebinarUpdateRequestDto dto, MultipartFile file) {
         log.info("Starting webinar update: ID={}", dto.getId());
 
-        // 1. Проверка существования вебинара
         Webinar webinar = webinarRepository.findById(dto.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Webinar not found with id: " + dto.getId()));
 
-        // 2. Валидация курса
         courseValidationService.validateCourseExists(dto.getCourseId());
 
-        // 3. Обработка превью
         String newFilename = webinar.getPreviewFilename();
         String newUrl = webinar.getPreviewUrl();
 
@@ -96,7 +97,47 @@ public class WebinarServiceImpl implements WebinarService {
             log.info("New preview stored: {}", newUrl);
         }
 
-        // 4. Обновление полей
+        updateWebinarFields(dto, webinar, newFilename, newUrl);
+
+        webinarRepository.save(webinar);
+        log.info("Webinar updated: {}", webinar.getId());
+
+        List<WebinarParticipant> newParticipants = webinarParticipantService.updateParticipants(webinar, dto.getParticipants());
+        log.info("Participants updated: {}", newParticipants.size());
+
+        webinar.getParticipants().clear();
+        webinar.getParticipants().addAll(webinarParticipantService.getParticipantsByWebinarId(webinar.getId()));
+
+        WebinarResponseDto response = webinarMapper.toDto(webinar);
+        log.info("Webinar update completed: ID={}", webinar.getId());
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public void deleteWebinar(UUID webinarId) {
+        Webinar webinar = webinarRepository.findById(webinarId)
+                .orElseThrow(() -> new WebinarNotFoundException("Webinar not found with id: " + webinarId));
+
+        if (webinar.getPreviewFilename() != null) {
+            fileStorageService.delete(webinar.getPreviewFilename());
+            log.info("Deleted preview: {}", webinar.getPreviewFilename());
+        }
+
+
+        if (!webinar.getParticipants().isEmpty()) {
+            webinar.getParticipants().clear();
+        }
+        log.info("Cleared participants for webinar: {}", webinarId);
+
+        webinarRepository.delete(webinar);
+        log.info("Webinar deleted: {}", webinarId);
+    }
+
+
+
+
+    private void updateWebinarFields(WebinarUpdateRequestDto dto, Webinar webinar, String newFilename, String newUrl) {
         webinar.setTitle(dto.getTitle());
         webinar.setStartTime(dto.getStartTime());
         webinar.setEndTime(dto.getEndTime());
@@ -106,24 +147,6 @@ public class WebinarServiceImpl implements WebinarService {
         webinar.setPreviewFilename(newFilename);
         webinar.setPreviewUrl(newUrl);
         webinar.setUpdatedAt(LocalDateTime.now());
-
-        // 5. Сохранение обновленного вебинара
-        webinarRepository.save(webinar);
-        log.info("Webinar updated: {}", webinar.getId());
-
-        // 6. Обновление участников
-        List<UUID> newParticipants = webinarParticipantService.updateParticipants(webinar, dto.getParticipants());
-        log.info("Participants updated: {}", newParticipants.size());
-
-        // 7. Обновление связи
-        webinar.getParticipants().clear(); // Очистить текущую коллекцию
-        webinar.getParticipants().addAll(webinarParticipantService.getParticipantsByWebinarId(webinar.getId()));
-
-
-        // 8. Возврат DTO
-        WebinarResponseDto response = webinarMapper.toDto(webinar);
-        log.info("Webinar update completed: ID={}", webinar.getId());
-        return response;
     }
 
     private Webinar buildWebinar(WebinarCreateRequestDto dto, String filename, String previewUrl) {
