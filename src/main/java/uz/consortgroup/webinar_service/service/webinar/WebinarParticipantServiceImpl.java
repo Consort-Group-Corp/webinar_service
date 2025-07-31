@@ -12,6 +12,7 @@ import uz.consortgroup.core.api.v1.dto.user.response.UserSearchResponse;
 import uz.consortgroup.webinar_service.client.UserClient;
 import uz.consortgroup.webinar_service.entity.Webinar;
 import uz.consortgroup.webinar_service.entity.WebinarParticipant;
+import uz.consortgroup.webinar_service.exception.UserNotFoundException;
 import uz.consortgroup.webinar_service.repository.WebinarParticipantRepository;
 
 
@@ -120,7 +121,7 @@ public class WebinarParticipantServiceImpl implements WebinarParticipantService 
                                     ? user.getEmail()
                                     : user.getPinfl();
                             if (key == null) {
-                                throw new IllegalStateException("User does not contain a valid identifier: " + user.getUserId());
+                                throw new UserNotFoundException("User does not contain a valid identifier: " + user.getUserId());
                             }
                             return key;
                         },
@@ -131,7 +132,7 @@ public class WebinarParticipantServiceImpl implements WebinarParticipantService 
                 .map(identifier -> {
                     UUID userId = identifierToUserId.get(identifier);
                     if (userId == null) {
-                        throw new IllegalArgumentException("User not found by identifier: " + identifier);
+                        throw new UserNotFoundException("User not found by identifier: " + identifier);
                     }
                     WebinarParticipant participant = new WebinarParticipant();
                     participant.setWebinar(webinar);

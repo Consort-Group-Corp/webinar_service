@@ -79,7 +79,7 @@ public class WebinarServiceImpl implements WebinarService {
         log.info("Starting webinar update: ID={}", dto.getId());
 
         Webinar webinar = webinarRepository.findById(dto.getId())
-                .orElseThrow(() -> new IllegalArgumentException("Webinar not found with id: " + dto.getId()));
+                .orElseThrow(() -> new WebinarNotFoundException("Webinar not found with id: " + dto.getId()));
 
         courseValidationService.validateCourseExists(dto.getCourseId());
 
