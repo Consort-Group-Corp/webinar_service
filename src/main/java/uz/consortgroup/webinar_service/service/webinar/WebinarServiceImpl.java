@@ -16,6 +16,7 @@ import uz.consortgroup.webinar_service.service.storage.FileStorageService;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @RequiredArgsConstructor
 @Service
@@ -28,39 +29,39 @@ public class WebinarServiceImpl implements WebinarService {
     private final AuthContext authContext;
     private final WebinarParticipantService webinarParticipantService;
 
-
     @Value("${app.preview.base-url}")
     private String previewBaseUrl;
 
     @Override
     @Transactional
     public WebinarResponseDto create(WebinarCreateRequestDto dto, MultipartFile file) {
-        log.info("Creating new webinar with title='{}', startTime={}, endTime={}, participants={}",
-                dto.getTitle(), dto.getStartTime(), dto.getEndTime(), dto.getParticipants().size());
+        log.info("Starting webinar creation: {}", dto.getTitle());
 
-        String filename = null;
+        String previewFilename = null;
         String previewUrl = null;
-
         if (file != null && !file.isEmpty()) {
-            filename = fileStorageService.store(file);
-            previewUrl = previewBaseUrl + filename;
-            log.info("Uploaded preview file '{}', accessible at '{}'", filename, previewUrl);
+            previewFilename = fileStorageService.store(file);
+            previewUrl = previewBaseUrl + previewFilename;
+            log.debug("Preview stored: {}", previewUrl);
         }
 
-        Webinar webinar = buildWebinar(dto, filename, previewUrl);
-        webinarRepository.save(webinar);
-        log.info("Webinar saved with ID={}", webinar.getId());
+        Webinar webinar = buildWebinar(dto, previewFilename, previewUrl);
+        webinar = webinarRepository.save(webinar);
+        log.info("Webinar saved with ID: {}", webinar.getId());
 
-        List<String> participantIdentifiers = dto.getParticipants();
-        webinarParticipantService.addParticipants(webinar, participantIdentifiers);
-        log.info("Participants successfully added to webinar ID={}", webinar.getId());
+        List<String> identifiers = dto.getParticipants();
+        log.debug("Adding participants: count={}", identifiers.size());
+        List<UUID> addedUserIds = webinarParticipantService.addParticipants(webinar, identifiers);
+        log.info("Added {} participants", addedUserIds.size());
 
-        Webinar updated = webinarRepository.findById(webinar.getId())
-                .orElseThrow(() -> new RuntimeException("Webinar not found after participant insertion"));
+        webinarRepository.flush();
+        log.debug("Database flush completed");
 
-        WebinarResponseDto response = webinarMapper.toDto(updated);
-        log.info("Webinar creation completed. Returning response DTO for ID={}", webinar.getId());
+        webinar.setParticipants(webinarParticipantService.getParticipantsByWebinarId(webinar.getId()));
+        log.debug("Loaded participants: {}", webinar.getParticipants().size());
 
+        WebinarResponseDto response = webinarMapper.toDto(webinar);
+        log.info("Webinar creation completed: ID={}", webinar.getId());
         return response;
     }
 
@@ -79,4 +80,3 @@ public class WebinarServiceImpl implements WebinarService {
                 .build();
     }
 }
-

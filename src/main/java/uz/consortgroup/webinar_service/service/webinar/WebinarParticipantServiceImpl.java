@@ -71,4 +71,11 @@ public class WebinarParticipantServiceImpl implements WebinarParticipantService 
 
         return addedUserIds;
     }
+
+    @Override
+    public List<WebinarParticipant> getParticipantsByWebinarId(UUID webinarId) {
+        log.debug("Loading participants from DB for webinarId={}", webinarId);
+        return webinarParticipantRepository.findByWebinarId(webinarId);
+    }
 }
+
