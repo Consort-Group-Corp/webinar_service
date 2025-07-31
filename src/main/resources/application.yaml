@@ -63,3 +63,7 @@ storage:
 user:
   service:
     url: http://localhost:8081
+
+course:
+  service:
+    url: http://localhost:8084

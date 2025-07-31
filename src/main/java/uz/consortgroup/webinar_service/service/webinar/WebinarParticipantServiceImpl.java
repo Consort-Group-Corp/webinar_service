@@ -15,7 +15,9 @@ import uz.consortgroup.webinar_service.repository.WebinarParticipantRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -45,29 +47,47 @@ public class WebinarParticipantServiceImpl implements WebinarParticipantService 
                 .filter(user -> user.getRole() != UserRole.GUEST_USER)
                 .toList();
 
-        int excluded = users.size() - filtered.size();
-        if (excluded > 0) {
-            log.info("Excluded {} GUEST_USER(s)", excluded);
+        Set<UUID> newUserIds = filtered.stream()
+                .map(UserSearchResponse::getUserId)
+                .collect(Collectors.toSet());
+
+        Set<UUID> existingUserIds = webinarParticipantRepository.findByWebinarId(webinar.getId()).stream()
+                .map(WebinarParticipant::getUserId)
+                .collect(Collectors.toSet());
+
+        newUserIds.removeAll(existingUserIds);
+
+        if (newUserIds.isEmpty()) {
+            log.info("No new participants to add.");
+            return List.of();
         }
 
-        List<WebinarParticipant> participants = filtered.stream()
-                .map(user -> WebinarParticipant.builder()
+        List<WebinarParticipant> participants = newUserIds.stream()
+                .map(userId -> WebinarParticipant.builder()
                         .webinar(webinar)
-                        .userId(user.getUserId())
+                        .userId(userId)
                         .createdAt(LocalDateTime.now())
                         .build())
                 .toList();
 
         webinarParticipantRepository.saveAll(participants);
 
-        List<UUID> addedUserIds = participants.stream()
-                .map(WebinarParticipant::getUserId)
-                .toList();
+        log.info("Successfully added {} new participants", participants.size());
+        return newUserIds.stream().toList();
+    }
 
-        log.info("Successfully added {} participants to webinar {}", addedUserIds.size(), webinar.getId());
-        addedUserIds.forEach(id ->
-                log.debug("Participant added: userId={} to webinarId={}", id, webinar.getId())
-        );
+    @Override
+    public List<UUID> updateParticipants(Webinar webinar, List<String> identifiers) {
+        log.info("Updating participants for webinar: {}", webinar.getId());
+
+        List<WebinarParticipant> existing = webinarParticipantRepository.findByWebinarId(webinar.getId());
+        if (!existing.isEmpty()) {
+            webinarParticipantRepository.deleteAll(existing);
+            log.debug("Deleted {} existing participants", existing.size());
+        }
+
+        List<UUID> addedUserIds = addParticipants(webinar, identifiers);
+        log.info("Updated participants for webinar: {}, added {} new", webinar.getId(), addedUserIds.size());
 
         return addedUserIds;
     }

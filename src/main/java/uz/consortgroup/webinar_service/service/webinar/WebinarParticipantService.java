@@ -8,5 +8,6 @@ import java.util.UUID;
 
 public interface WebinarParticipantService {
     List<UUID> addParticipants(Webinar webinar, List<String> identifiers);
+    List<UUID> updateParticipants(Webinar webinar, List<String> identifiers);
     List<WebinarParticipant> getParticipantsByWebinarId(UUID webinarId);
 }
