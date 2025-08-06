@@ -34,8 +34,11 @@ public class Webinar {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false, length = 100)
+    @Column(name = "title", nullable = false, length = 100)
     private String title;
+
+    @Column(name = "category", nullable = false, length = 100)
+    private String category;
 
     @Column(name = "preview_url")
     private String previewUrl;

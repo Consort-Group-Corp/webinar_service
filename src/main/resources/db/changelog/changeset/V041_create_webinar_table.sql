@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS webinar_schema.webinars(
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     title VARCHAR(100) NOT NULL,
+    category VARCHAR(100) NOT NULL,
     preview_url TEXT,
     preview_filename TEXT,
     start_time TIMESTAMP WITHOUT TIME ZONE NOT NULL,

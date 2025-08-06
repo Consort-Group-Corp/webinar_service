@@ -3,12 +3,22 @@ package uz.consortgroup.webinar_service.service.webinar;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import uz.consortgroup.core.api.v1.dto.user.enumeration.UserRole;
+import uz.consortgroup.core.api.v1.dto.user.response.UserShortInfoResponseDto;
 import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarCreateRequestDto;
 import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarUpdateRequestDto;
+import uz.consortgroup.core.api.v1.dto.webinar.response.WebinarListItemResponseDto;
+import uz.consortgroup.core.api.v1.dto.webinar.response.WebinarListPageResponse;
 import uz.consortgroup.core.api.v1.dto.webinar.response.WebinarResponseDto;
+import uz.consortgroup.webinar_service.client.UserClient;
 import uz.consortgroup.webinar_service.entity.Webinar;
 import uz.consortgroup.webinar_service.entity.WebinarParticipant;
 import uz.consortgroup.webinar_service.exception.WebinarNotFoundException;
@@ -16,11 +26,19 @@ import uz.consortgroup.webinar_service.mapper.WebinarMapper;
 import uz.consortgroup.webinar_service.repository.WebinarRepository;
 import uz.consortgroup.webinar_service.security.AuthContext;
 import uz.consortgroup.webinar_service.service.storage.FileStorageService;
+import uz.consortgroup.webinar_service.service.strategy.WebinarCategoryStrategy;
+import uz.consortgroup.webinar_service.service.strategy.WebinarCategoryStrategyFactory;
 import uz.consortgroup.webinar_service.validator.CourseValidationService;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -33,6 +51,9 @@ public class WebinarServiceImpl implements WebinarService {
     private final AuthContext authContext;
     private final WebinarParticipantService webinarParticipantService;
     private final CourseValidationService courseValidationService;
+    private final MessageSource messageSource;
+    private final UserClient userClient;
+    private final WebinarCategoryStrategyFactory webinarCategoryStrategyFactory;
 
     @Value("${app.preview.base-url}")
     private String previewBaseUrl;
@@ -133,8 +154,65 @@ public class WebinarServiceImpl implements WebinarService {
         log.info("Webinar deleted: {}", webinarId);
     }
 
+    @Override
+    public WebinarListPageResponse getWebinars(String category, String lang, Pageable pageable) {
+        UUID userId = authContext.getCurrentUserId();
+        UserRole role = authContext.getCurrentUserRole();
+
+        WebinarCategoryStrategy strategy = webinarCategoryStrategyFactory.getStrategy(category);
+
+        Specification<Webinar> spec = strategy.getSpecification(userId, role);
+
+        Pageable sortedPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                strategy.getSort()
+        );
+
+        Page<Webinar> page = webinarRepository.findAll(spec, sortedPageable);
+
+        Map<UUID, UserShortInfoResponseDto> userMap = Collections.emptyMap();
+        if (!page.isEmpty()) {
+            Set<UUID> tutorIds = page.stream()
+                    .map(Webinar::getCreatedBy)
+                    .collect(Collectors.toSet());
+
+            userMap = userClient.getShortInfoBulk(new ArrayList<>(tutorIds));
+
+    }
+
+        final Map<UUID, UserShortInfoResponseDto> finalUserMap = userMap;
+
+        List<WebinarListItemResponseDto> webinars = page.getContent().stream()
+                .map(webinar -> {
+                    UserShortInfoResponseDto tutor = finalUserMap.get(webinar.getCreatedBy());
+                    return WebinarListItemResponseDto.builder()
+                            .id(webinar.getId())
+                            .title(webinar.getTitle())
+                            .startTime(webinar.getStartTime())
+                            .endTime(webinar.getEndTime())
+                            .platformUrl(webinar.getPlatformUrl())
+                            .previewUrl(webinar.getPreviewFilename())
+                            .tutors(List.of(tutor))
+                            .build();
+                }).toList();
+
+        String message = page.isEmpty()
+                ? messageSource.getMessage("webinar.empty", null, Locale.forLanguageTag(lang))
+                : null;
+
+        return WebinarListPageResponse.builder()
+                .webinars(webinars)
+                .empty(webinars.isEmpty())
+                .message(message)
+                .totalPages(page.getTotalPages())
+                .totalElements(page.getTotalElements())
+                .build();
+    }
+
     private void updateWebinarFields(WebinarUpdateRequestDto dto, Webinar webinar, String newFilename, String newUrl) {
         webinar.setTitle(dto.getTitle());
+        webinar.setCategory(dto.getCategory());
         webinar.setStartTime(dto.getStartTime());
         webinar.setEndTime(dto.getEndTime());
         webinar.setPlatformUrl(dto.getPlatformUrl());
@@ -148,6 +226,7 @@ public class WebinarServiceImpl implements WebinarService {
     private Webinar buildWebinar(WebinarCreateRequestDto dto, String filename, String previewUrl) {
         return Webinar.builder()
                 .title(dto.getTitle())
+                .category(dto.getCategory())
                 .startTime(dto.getStartTime())
                 .endTime(dto.getEndTime())
                 .platformUrl(dto.getPlatformUrl())

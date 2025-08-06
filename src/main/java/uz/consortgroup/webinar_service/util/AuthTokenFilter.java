@@ -7,18 +7,22 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+import uz.consortgroup.core.api.v1.dto.user.enumeration.UserRole;
 import uz.consortgroup.webinar_service.security.AuthenticatedUser;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class AuthTokenFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
@@ -27,31 +31,43 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
+        try {
+            String jwt = parseJwt(request);
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            log.info("JWT received: {}", token);
+            if (jwt != null && jwtTokenProvider.validateToken(jwt)) {
+                UUID userId = jwtTokenProvider.getUserIdFromToken(jwt);
+                String userRole = jwtTokenProvider.getUserRoleFromToken(jwt);
 
-            if (jwtTokenProvider.validateToken(token)) {
-                UUID userId = jwtTokenProvider.extractUserId(token);
+                AuthenticatedUser authenticatedUser =
+                        new AuthenticatedUser(userId, UserRole.valueOf(userRole));
 
-                if (userId != null) {
-                    AuthenticatedUser principal = new AuthenticatedUser(userId);
-                    UsernamePasswordAuthenticationToken auth =
-                            new UsernamePasswordAuthenticationToken(principal, null, List.of());
-                    SecurityContextHolder.getContext().setAuthentication(auth);
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                authenticatedUser,
+                                null,
+                                List.of(new SimpleGrantedAuthority(userRole))
+                        );
 
-                    log.info("JWT valid, authenticated userId: {}", userId);
-                } else {
-                    log.warn("JWT valid, but userId extraction failed");
-                }
-            } else {
-                log.warn("Invalid JWT token");
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                log.info("Authenticated userId: {}, role: {}", userId, userRole);
             }
+
+        } catch (Exception e) {
+            log.error("Cannot authenticate user: {}", e.getMessage(), e);
         }
 
         filterChain.doFilter(request, response);
     }
 
+    private String parseJwt(HttpServletRequest request) {
+        String headerAuth = request.getHeader("Authorization");
+        if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
+            return headerAuth.substring(7).trim();
+        }
+        return null;
+    }
 }
+
+
