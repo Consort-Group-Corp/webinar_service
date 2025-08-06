@@ -3,6 +3,7 @@ package uz.consortgroup.webinar_service.security;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import uz.consortgroup.core.api.v1.dto.user.enumeration.UserRole;
 import uz.consortgroup.webinar_service.exception.UnauthorizedException;
 
 
@@ -13,6 +14,15 @@ public class AuthContextImpl implements AuthContext {
 
     @Override
     public UUID getCurrentUserId() {
+        return getAuthenticatedUser().getUserId();
+    }
+
+    @Override
+    public UserRole getCurrentUserRole() {
+        return getAuthenticatedUser().getRole();
+    }
+
+    private AuthenticatedUser getAuthenticatedUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -21,10 +31,11 @@ public class AuthContextImpl implements AuthContext {
 
         Object principal = authentication.getPrincipal();
 
-        if (!(principal instanceof AuthenticatedUser(UUID id))) {
+        if (!(principal instanceof AuthenticatedUser user)) {
             throw new UnauthorizedException("Invalid authentication principal");
         }
 
-        return id;
+        return user;
     }
 }
+

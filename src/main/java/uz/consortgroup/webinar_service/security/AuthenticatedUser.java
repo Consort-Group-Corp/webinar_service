@@ -1,10 +1,14 @@
 package uz.consortgroup.webinar_service.security;
 
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
+import uz.consortgroup.core.api.v1.dto.user.enumeration.UserRole;
+
 import java.util.UUID;
 
-public record AuthenticatedUser(UUID id) implements HasAuthContext {
-    @Override
-    public UUID getId() {
-        return id;
-    }
+@Data
+@RequiredArgsConstructor
+public class AuthenticatedUser {
+    private final UUID userId;
+    private final UserRole role;
 }
