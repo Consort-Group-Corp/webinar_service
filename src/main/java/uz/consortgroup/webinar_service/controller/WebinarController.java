@@ -2,11 +2,15 @@ package uz.consortgroup.webinar_service.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,6 +33,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/v1/webinars")
+@Validated
 public class WebinarController {
 
     private final WebinarService webinarService;
@@ -62,8 +67,9 @@ public class WebinarController {
 
     @GetMapping("/list")
     @ResponseStatus(HttpStatus.OK)
-    public WebinarListPageResponse getWebinars(@RequestParam String category, @RequestParam(defaultValue = "ru") String lang,
-                                               @PageableDefault(size = 10) Pageable pageable) {
+    public WebinarListPageResponse getWebinars(@RequestParam @NotBlank String category, @RequestParam(defaultValue = "ru")
+                                                   @Pattern(regexp = "ru|en|uz|uzk|kaa")String lang,
+                                               @PageableDefault(size = 10) @Valid Pageable pageable) {
 
         return webinarService.getWebinars(category, lang, pageable);
     }
