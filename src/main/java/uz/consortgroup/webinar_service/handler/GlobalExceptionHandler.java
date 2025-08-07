@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import uz.consortgroup.webinar_service.exception.CourseNotFoundException;
 import uz.consortgroup.webinar_service.exception.FileStorageException;
+import uz.consortgroup.webinar_service.exception.ResourceNotFoundException;
 import uz.consortgroup.webinar_service.exception.UnauthorizedException;
 import uz.consortgroup.webinar_service.exception.UserNotFoundException;
 import uz.consortgroup.webinar_service.exception.WebinarNotFoundException;
@@ -104,5 +105,12 @@ public class GlobalExceptionHandler {
         log.error("User not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), "User not found", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        log.error("Resource not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), "Resource not found", ex.getMessage()));
     }
 }

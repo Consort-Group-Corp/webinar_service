@@ -6,6 +6,7 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -14,18 +15,25 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import uz.consortgroup.core.api.v1.dto.webinar.enumeration.LanguageCode;
 import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarCreateRequestDto;
 import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarUpdateRequestDto;
+import uz.consortgroup.core.api.v1.dto.webinar.response.WebinarListPageResponse;
 import uz.consortgroup.core.api.v1.dto.webinar.response.WebinarResponseDto;
+import uz.consortgroup.webinar_service.exception.ResourceNotFoundException;
 import uz.consortgroup.webinar_service.service.webinar.WebinarService;
 import uz.consortgroup.webinar_service.util.AuthTokenFilter;
 import uz.consortgroup.webinar_service.util.JwtTokenProvider;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -63,7 +71,7 @@ class WebinarControllerTest {
         response.setId(UUID.randomUUID());
         response.setTitle(dto.getTitle());
 
-        Mockito.when(webinarService.createWebinar(any(WebinarCreateRequestDto.class), any()))
+        when(webinarService.createWebinar(any(WebinarCreateRequestDto.class), any()))
                 .thenReturn(response);
 
         MockMultipartFile metadata = new MockMultipartFile(
@@ -99,7 +107,7 @@ class WebinarControllerTest {
         response.setId(dto.getId());
         response.setTitle(dto.getTitle());
 
-        Mockito.when(webinarService.updateWebinar(any(WebinarUpdateRequestDto.class), any()))
+        when(webinarService.updateWebinar(any(WebinarUpdateRequestDto.class), any()))
                 .thenReturn(response);
 
         MockMultipartFile metadata = new MockMultipartFile(
@@ -127,7 +135,7 @@ class WebinarControllerTest {
         mockMvc.perform(MockMvcRequestBuilders.delete("/api/v1/webinars/{webinarId}", id))
                 .andExpect(status().isOk());
 
-        Mockito.verify(webinarService).deleteWebinar(eq(id));
+        verify(webinarService).deleteWebinar(eq(id));
     }
 
     @Test
@@ -152,6 +160,61 @@ class WebinarControllerTest {
                         .file(metadata)
                         .with(req -> { req.setMethod("PUT"); return req; })
                         .contentType(MediaType.MULTIPART_FORM_DATA))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getWebinars_ShouldReturn200_WithValidParams() throws Exception {
+        String category = "planned";
+        String lang = "ru";
+
+        WebinarListPageResponse mockResponse = WebinarListPageResponse.builder()
+                .empty(true)
+                .message("Нет запланированных вебинаров")
+                .totalElements(0L)
+                .totalPages(0)
+                .webinars(Collections.emptyList())
+                .build();
+
+        when(webinarService.getWebinars(eq(category), eq(lang), any(Pageable.class)))
+                .thenReturn(mockResponse);
+
+        mockMvc.perform(get("/api/v1/webinars/list")
+                        .param("category", category)
+                        .param("lang", lang)
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.empty").value(true))
+                .andExpect(jsonPath("$.message").value("Нет запланированных вебинаров"))
+                .andExpect(jsonPath("$.totalPages").value(0))
+                .andExpect(jsonPath("$.webinars").isArray());
+
+        verify(webinarService).getWebinars(eq(category), eq(lang), any(Pageable.class));
+    }
+
+    @Test
+    void getWebinars_ShouldReturn400_WhenCategoryMissing() throws Exception {
+        mockMvc.perform(get("/api/v1/webinars/list")
+                        .param("lang", "ru")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getWebinars_ShouldReturn400_WhenLangIsInvalid() throws Exception {
+        mockMvc.perform(get("/api/v1/webinars/list")
+                        .param("category", "planned")
+                        .param("lang", "de"))  // не входит в список ru|en|uz|uzk|kaa
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getWebinars_ShouldReturn400_WhenCategoryBlank() throws Exception {
+        mockMvc.perform(get("/api/v1/webinars/list")
+                        .param("category", " ")
+                        .param("lang", "ru"))
                 .andExpect(status().isBadRequest());
     }
 }
