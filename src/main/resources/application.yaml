@@ -67,3 +67,19 @@ user:
 course:
   service:
     url: http://localhost:8084
+
+springdoc:
+  api-docs:
+    enabled: true
+
+  swagger-ui:
+    docExpansion: full
+    defaultModelsExpandDepth: 1
+    defaultModelExpandDepth: 3
+    defaultModelRendering: schema
+    operationsSorter: method
+    tagsSorter: alpha
+
+  model-converters:
+    pageable-converter:
+      enabled: true
