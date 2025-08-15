@@ -20,7 +20,7 @@ import java.util.UUID;
 )
 public interface UserClient {
 
-    @PostMapping("/api/v1/users/bulk-search")
+    @PostMapping("/api/v1/internal/users/bulk-search")
     UserBulkSearchResponse searchUsersBulk(@RequestBody UserBulkSearchRequest request);
 
     @PostMapping("/api/v1/internal/users/short-info")
