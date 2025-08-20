@@ -25,7 +25,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthTokenFilter extends OncePerRequestFilter {
 
-    private final JwtTokenProvider jwtTokenProvider;
+    private final JwtUtils jwtUtils;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -34,9 +34,9 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         try {
             String jwt = parseJwt(request);
 
-            if (jwt != null && jwtTokenProvider.validateToken(jwt)) {
-                UUID userId = jwtTokenProvider.getUserIdFromToken(jwt);
-                String userRole = jwtTokenProvider.getUserRoleFromToken(jwt);
+            if (jwt != null && jwtUtils.validateToken(jwt)) {
+                UUID userId = jwtUtils.getUserIdFromToken(jwt);
+                String userRole = jwtUtils.getUserRoleFromToken(jwt);
 
                 AuthenticatedUser authenticatedUser =
                         new AuthenticatedUser(userId, UserRole.valueOf(userRole));
