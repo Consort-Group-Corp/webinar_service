@@ -2,7 +2,6 @@ package uz.consortgroup.webinar_service.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -17,10 +16,9 @@ import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarCreateRequestDto;
 import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarUpdateRequestDto;
 import uz.consortgroup.core.api.v1.dto.webinar.response.WebinarListPageResponse;
 import uz.consortgroup.core.api.v1.dto.webinar.response.WebinarResponseDto;
-import uz.consortgroup.webinar_service.exception.ResourceNotFoundException;
 import uz.consortgroup.webinar_service.service.webinar.WebinarService;
 import uz.consortgroup.webinar_service.util.AuthTokenFilter;
-import uz.consortgroup.webinar_service.util.JwtTokenProvider;
+import uz.consortgroup.webinar_service.util.JwtUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -29,7 +27,6 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,7 +45,7 @@ class WebinarControllerTest {
     private WebinarService webinarService;
 
     @MockitoBean
-    private JwtTokenProvider jwtTokenProvider;
+    private JwtUtils jwtUtils;
 
     @MockitoBean
     private AuthTokenFilter authTokenFilter;
