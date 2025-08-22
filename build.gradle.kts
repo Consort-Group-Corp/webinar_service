@@ -39,6 +39,9 @@ dependencies {
     // Core DTO
     implementation("uz.consortgroup:core-api-dto:0.0.1")
 
+    //Eureka
+    implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
+
     // Spring Boot Starters
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
