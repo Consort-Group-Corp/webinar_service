@@ -14,7 +14,7 @@ public class SwaggerConfig {
     public OpenAPI userServiceOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("User Service API")
+                        .title("Webinar Service API")
                         .description("API документация для Webinar Service")
                         .version("v1.0")
                         .license(new License().name("Apache 2.0").url("https://springdoc.org")))
