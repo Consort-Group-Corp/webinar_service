@@ -34,28 +34,46 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         try {
             String jwt = parseJwt(request);
 
-            if (jwt != null && jwtUtils.validateToken(jwt)) {
+            if (jwt != null && jwtUtils.isValidToken(jwt)) {
                 UUID userId = jwtUtils.getUserIdFromToken(jwt);
-                String userRole = jwtUtils.getUserRoleFromToken(jwt);
+                String userRoleStr = jwtUtils.getUserRoleFromToken(jwt);
+
+                UserRole userRole;
+                try {
+                    userRole = UserRole.valueOf(userRoleStr);
+                } catch (IllegalArgumentException e) {
+                    log.error("Invalid user role in token: {}", userRoleStr);
+                    SecurityContextHolder.clearContext();
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
+                if (userId == null) {
+                    log.error("User ID is null in valid token");
+                    SecurityContextHolder.clearContext();
+                    filterChain.doFilter(request, response);
+                    return;
+                }
 
                 AuthenticatedUser authenticatedUser =
-                        new AuthenticatedUser(userId, UserRole.valueOf(userRole));
+                        new AuthenticatedUser(userId, userRole);
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 authenticatedUser,
                                 null,
-                                List.of(new SimpleGrantedAuthority(userRole))
+                                List.of(new SimpleGrantedAuthority(userRole.name()))
                         );
 
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                log.info("Authenticated userId: {}, role: {}", userId, userRole);
+                log.debug("Authenticated userId: {}, role: {}", userId, userRole);
             }
 
         } catch (Exception e) {
-            log.error("Cannot authenticate user: {}", e.getMessage(), e);
+            log.error("Cannot authenticate user: {}", e.getMessage());
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);
