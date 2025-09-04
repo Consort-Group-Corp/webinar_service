@@ -9,7 +9,7 @@ spring:
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/consort_group
+    url: jdbc:postgresql://db:5432/consort_group
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
@@ -28,8 +28,8 @@ spring:
 
   data:
     redis:
-      host: localhost
-      port: 6386
+      host: consort-redis-webinar-service
+      port: 6379
 
   servlet:
     multipart:
@@ -67,17 +67,17 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://eureka-service:8762/eureka/
   instance:
     prefer-ip-address: true
 
 user:
   service:
-    url: http://localhost:8081
+    url: http://consort-user-service:8081
 
 course:
   service:
-    url: http://localhost:8084
+    url: http://consort-course-service:8084
 
 springdoc:
   api-docs:
