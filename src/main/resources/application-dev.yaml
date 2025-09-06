@@ -4,14 +4,15 @@ server:
 spring:
   config:
     import: optional:file:.env[.properties]
+
   application:
     name: webinar-service
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://db:5432/consort_group
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:consort-postgres}:${DB_PORT:5432}/${POSTGRES_DB:consort_group}}
+    username: ${DB_USERNAME:${POSTGRES_USER:consort}}
+    password: ${DB_PASSWORD:${POSTGRES_PASSWORD:}}
     hikari:
       maximum-pool-size: 10
 
@@ -20,16 +21,23 @@ spring:
       ddl-auto: update
     show-sql: true
     properties:
-      hibernate:
-        format_sql: true
+      hibernate.format_sql: true
 
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
   data:
     redis:
-      host: consort-redis-webinar-service
-      port: 6379
+      host: ${REDIS_WEBINAR_HOST:consort-redis-webinar-service}
+      port: ${REDIS_WEBINAR_PORT:6379}
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+        shutdown-timeout: 100ms
 
   servlet:
     multipart:
@@ -67,9 +75,10 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
     service-url:
-      defaultZone: http://eureka-service:8762/eureka/
+      defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://consort-eureka-service:8762/eureka/}
   instance:
     prefer-ip-address: true
+    instance-id: ${HOSTNAME}:${server.port}
 
 user:
   service:
@@ -79,10 +88,15 @@ course:
   service:
     url: http://consort-course-service:8084
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
 springdoc:
   api-docs:
     enabled: true
-
   swagger-ui:
     docExpansion: full
     defaultModelsExpandDepth: 1
@@ -90,7 +104,6 @@ springdoc:
     defaultModelRendering: schema
     operationsSorter: method
     tagsSorter: alpha
-
   model-converters:
     pageable-converter:
       enabled: true
