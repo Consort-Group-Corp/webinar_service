@@ -36,6 +36,10 @@ import java.util.UUID;
 @Tag(name = "Webinars", description = "Операции с вебинарами")
 public class WebinarController {
 
+    private static final String FILE_RULES =
+            "Файл превью (часть 'file'), опционально. Допустимые типы: image/jpeg, image/png. " +
+                    "Расширения: jpg, jpeg, png. Максимальный размер: 100MB.";
+
     private final WebinarService webinarService;
     private final ObjectMapper objectMapper;
 
@@ -46,7 +50,9 @@ public class WebinarController {
                     @ApiResponse(responseCode = "201", description = "Создано", content = @Content(schema = @Schema(implementation = WebinarResponseDto.class))),
                     @ApiResponse(responseCode = "400", description = "Ошибка валидации"),
                     @ApiResponse(responseCode = "401", description = "Неавторизован"),
-                    @ApiResponse(responseCode = "403", description = "Нет доступа")
+                    @ApiResponse(responseCode = "403", description = "Нет доступа"),
+                    @ApiResponse(responseCode = "413", description = "Размер файла превышает лимит (100MB)"),
+                    @ApiResponse(responseCode = "415", description = "Неподдерживаемый тип файла (разрешены: image/jpeg, image/png)")
             }
     )
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -78,11 +84,11 @@ public class WebinarController {
             @RequestPart("metadata") String metadataJson,
 
             @Parameter(
-                    description = "Файл превью (часть 'file'), опционально",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE,
-                            schema = @Schema(type = "string", format = "binary")
-                    )
+                    description = FILE_RULES,
+                    content = {
+                            @Content(mediaType = "image/jpeg", schema = @Schema(type = "string", format = "binary")),
+                            @Content(mediaType = "image/png",  schema = @Schema(type = "string", format = "binary"))
+                    }
             )
             @RequestPart(value = "file", required = false) MultipartFile file
     ) throws JsonProcessingException {
@@ -98,7 +104,9 @@ public class WebinarController {
                     @ApiResponse(responseCode = "400", description = "Ошибка валидации"),
                     @ApiResponse(responseCode = "401", description = "Не авторизован"),
                     @ApiResponse(responseCode = "403", description = "Нет доступа"),
-                    @ApiResponse(responseCode = "404", description = "Вебинар не найден")
+                    @ApiResponse(responseCode = "404", description = "Вебинар не найден"),
+                    @ApiResponse(responseCode = "413", description = "Размер файла превышает лимит (100MB)"),
+                    @ApiResponse(responseCode = "415", description = "Неподдерживаемый тип файла (разрешены: image/jpeg, image/png)")
             }
     )
     @PutMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -131,11 +139,11 @@ public class WebinarController {
             @RequestPart("metadata") String metadataJson,
 
             @Parameter(
-                    description = "Новое изображение превью (часть 'file'), опционально",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE,
-                            schema = @Schema(type = "string", format = "binary")
-                    )
+                    description = FILE_RULES,
+                    content = {
+                            @Content(mediaType = "image/jpeg", schema = @Schema(type = "string", format = "binary")),
+                            @Content(mediaType = "image/png",  schema = @Schema(type = "string", format = "binary"))
+                    }
             )
             @RequestPart(value = "file", required = false) MultipartFile file
     ) throws JsonProcessingException {
