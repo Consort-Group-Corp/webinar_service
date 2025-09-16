@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -42,31 +41,7 @@ public class WebinarController {
 
     @Operation(
             summary = "Создать вебинар",
-            description = "Создает вебинар. Принимает multipart/form-data: JSON-метаданные в части `metadata` и опциональный файл превью в части `file`.",
-            requestBody = @RequestBody(
-                    required = true,
-                    content = @Content(
-                            mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
-                            schema = @Schema(type = "object", requiredProperties = {"metadata"}),
-                            examples = {
-                                    @ExampleObject(
-                                            name = "Пример metadata",
-                                            value = """
-                                {
-                                  "title": "Введение в Spring Boot",
-                                  "category": "java",
-                                  "startTime": "2025-08-20T10:00:00",
-                                  "endTime": "2025-08-20T11:00:00",
-                                  "platformUrl": "https://meet.example.com/room-123",
-                                  "courseId": "11111111-2222-3333-4444-555555555555",
-                                  "languageCode": "RU",
-                                  "participants": ["user1@example.com","user2@example.com"]
-                                }
-                                """
-                                    )
-                            }
-                    )
-            ),
+            description = "Создает вебинар. Принимает multipart/form-data: JSON-метаданные в части 'metadata' и опциональный файл превью в части 'file'.",
             responses = {
                     @ApiResponse(responseCode = "201", description = "Создано", content = @Content(schema = @Schema(implementation = WebinarResponseDto.class))),
                     @ApiResponse(responseCode = "400", description = "Ошибка валидации"),
@@ -77,9 +52,38 @@ public class WebinarController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public WebinarResponseDto createWebinar(
-            @Parameter(description = "JSON WebinarCreateRequestDto", required = true)
+            @Parameter(
+                    description = "JSON WebinarCreateRequestDto (часть 'metadata')",
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = WebinarCreateRequestDto.class),
+                            examples = @ExampleObject(
+                                    name = "Пример metadata",
+                                    value = """
+                                            {
+                                              "title": "Введение в Spring Boot",
+                                              "category": "java",
+                                              "startTime": "2025-08-20T10:00:00",
+                                              "endTime": "2025-08-20T11:00:00",
+                                              "platformUrl": "https://meet.example.com/room-123",
+                                              "courseId": "11111111-2222-3333-4444-555555555555",
+                                              "languageCode": "RU",
+                                              "participants": ["user1@example.com","user2@example.com"]
+                                            }
+                                            """
+                            )
+                    )
+            )
             @RequestPart("metadata") String metadataJson,
-            @Parameter(description = "Файл превью (изображение), опционально")
+
+            @Parameter(
+                    description = "Файл превью (часть 'file'), опционально",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                            schema = @Schema(type = "string", format = "binary")
+                    )
+            )
             @RequestPart(value = "file", required = false) MultipartFile file
     ) throws JsonProcessingException {
         WebinarCreateRequestDto metadata = objectMapper.readValue(metadataJson, WebinarCreateRequestDto.class);
@@ -88,32 +92,7 @@ public class WebinarController {
 
     @Operation(
             summary = "Обновить вебинар",
-            description = "Обновляет вебинар. Принимает multipart/form-data: JSON-метаданные в части `metadata` (WebinarUpdateRequestDto) и опциональный файл превью.",
-            requestBody = @RequestBody(
-                    required = true,
-                    content = @Content(
-                            mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
-                            schema = @Schema(type = "object", requiredProperties = {"metadata"}),
-                            examples = {
-                                    @ExampleObject(
-                                            name = "Пример metadata",
-                                            value = """
-                                {
-                                  "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-                                  "title": "Spring Boot: продвинутые темы",
-                                  "category": "java",
-                                  "startTime": "2025-08-22T10:00:00",
-                                  "endTime": "2025-08-22T11:30:00",
-                                  "platformUrl": "https://meet.example.com/room-789",
-                                  "courseId": "11111111-2222-3333-4444-555555555555",
-                                  "languageCode": "RU",
-                                  "participants": ["user3@example.com"]
-                                }
-                                """
-                                    )
-                            }
-                    )
-            ),
+            description = "Обновляет вебинар. Принимает multipart/form-data: JSON-метаданные в части 'metadata' (WebinarUpdateRequestDto) и опциональный файл превью в части 'file'.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "OK", content = @Content(schema = @Schema(implementation = WebinarResponseDto.class))),
                     @ApiResponse(responseCode = "400", description = "Ошибка валидации"),
@@ -125,9 +104,39 @@ public class WebinarController {
     @PutMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.OK)
     public WebinarResponseDto updateWebinar(
-            @Parameter(description = "JSON WebinarUpdateRequestDto", required = true)
+            @Parameter(
+                    description = "JSON WebinarUpdateRequestDto (часть 'metadata')",
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = WebinarUpdateRequestDto.class),
+                            examples = @ExampleObject(
+                                    name = "Пример metadata",
+                                    value = """
+                                            {
+                                              "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                                              "title": "Spring Boot: продвинутые темы",
+                                              "category": "java",
+                                              "startTime": "2025-08-22T10:00:00",
+                                              "endTime": "2025-08-22T11:30:00",
+                                              "platformUrl": "https://meet.example.com/room-789",
+                                              "courseId": "11111111-2222-3333-4444-555555555555",
+                                              "languageCode": "RU",
+                                              "participants": ["user3@example.com"]
+                                            }
+                                            """
+                            )
+                    )
+            )
             @RequestPart("metadata") String metadataJson,
-            @Parameter(description = "Новое изображение превью (опционально)")
+
+            @Parameter(
+                    description = "Новое изображение превью (часть 'file'), опционально",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                            schema = @Schema(type = "string", format = "binary")
+                    )
+            )
             @RequestPart(value = "file", required = false) MultipartFile file
     ) throws JsonProcessingException {
         WebinarUpdateRequestDto metadata = objectMapper.readValue(metadataJson, WebinarUpdateRequestDto.class);
@@ -156,12 +165,13 @@ public class WebinarController {
     @Operation(
             summary = "Список вебинаров (пагинация)",
             description = """
-                      Возвращает список вебинаров по категории и языку с пагинацией.
-                      Параметры пагинации: page (0..N), size, sort (например, sort=startTime,desc)
-                      """,
+                    Возвращает список вебинаров по категории и языку с пагинацией.
+                    Параметры пагинации: page (0..N), size, sort (например, sort=startTime,desc)
+                    """,
             parameters = {
                     @Parameter(name = "category", required = true, description = "Категория вебинара", example = "planned"),
-                    @Parameter(name = "lang", description = "Код языка интерфейса", example = "ru", schema = @Schema(allowableValues = {"ru","en","uz","uzk","kaa"}))
+                    @Parameter(name = "lang", description = "Код языка интерфейса", example = "ru",
+                            schema = @Schema(allowableValues = {"ru","en","uz","uzk","kaa"}))
             },
             responses = {
                     @ApiResponse(responseCode = "200", description = "OK", content = @Content(schema = @Schema(implementation = WebinarListPageResponse.class))),
