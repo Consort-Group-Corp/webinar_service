@@ -63,11 +63,11 @@ public class WebinarController {
                                     value = """
                                             {
                                               "title": "Введение в Spring Boot",
-                                              "category": "java",
+                                              "category": "planned",
                                               "startTime": "2025-08-20T10:00:00",
                                               "endTime": "2025-08-20T11:00:00",
                                               "platformUrl": "https://meet.example.com/room-123",
-                                              "courseId": "11111111-2222-3333-4444-555555555555",
+                                              "courseId": "df25826b-3c90-4e22-a820-224d4cfb85fa",
                                               "languageCode": "RU",
                                               "participants": ["user1@example.com","user2@example.com"]
                                             }
@@ -75,7 +75,7 @@ public class WebinarController {
                             )
                     )
             )
-            @RequestPart("metadata") String metadataJson,
+            @RequestPart("metadata") @Valid WebinarCreateRequestDto metadata,
 
             @Parameter(
                     description = "Файл превью (часть 'file'), опционально",
@@ -85,8 +85,7 @@ public class WebinarController {
                     )
             )
             @RequestPart(value = "file", required = false) MultipartFile file
-    ) throws JsonProcessingException {
-        WebinarCreateRequestDto metadata = objectMapper.readValue(metadataJson, WebinarCreateRequestDto.class);
+    ) {
         return webinarService.createWebinar(metadata, file);
     }
 
@@ -114,13 +113,13 @@ public class WebinarController {
                                     name = "Пример metadata",
                                     value = """
                                             {
-                                              "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                                              "id": "9c7bfe69-920f-43e2-af84-f6bfc4b8cd83",
                                               "title": "Spring Boot: продвинутые темы",
-                                              "category": "java",
+                                              "category": "planned",
                                               "startTime": "2025-08-22T10:00:00",
                                               "endTime": "2025-08-22T11:30:00",
                                               "platformUrl": "https://meet.example.com/room-789",
-                                              "courseId": "11111111-2222-3333-4444-555555555555",
+                                              "courseId": "df25826b-3c90-4e22-a820-224d4cfb85fa",
                                               "languageCode": "RU",
                                               "participants": ["user3@example.com"]
                                             }
@@ -128,7 +127,7 @@ public class WebinarController {
                             )
                     )
             )
-            @RequestPart("metadata") String metadataJson,
+            @RequestPart("metadata") WebinarUpdateRequestDto metadataJson,
 
             @Parameter(
                     description = "Новое изображение превью (часть 'file'), опционально",
@@ -138,9 +137,9 @@ public class WebinarController {
                     )
             )
             @RequestPart(value = "file", required = false) MultipartFile file
-    ) throws JsonProcessingException {
-        WebinarUpdateRequestDto metadata = objectMapper.readValue(metadataJson, WebinarUpdateRequestDto.class);
-        return webinarService.updateWebinar(metadata, file);
+    ) {
+
+        return webinarService.updateWebinar(metadataJson, file);
     }
 
     @Operation(
@@ -171,7 +170,7 @@ public class WebinarController {
             parameters = {
                     @Parameter(name = "category", required = true, description = "Категория вебинара", example = "planned"),
                     @Parameter(name = "lang", description = "Код языка интерфейса", example = "ru",
-                            schema = @Schema(allowableValues = {"ru","en","uz","uzk","kaa"}))
+                            schema = @Schema(allowableValues = {"ru", "en", "uz", "uzk", "kaa"}))
             },
             responses = {
                     @ApiResponse(responseCode = "200", description = "OK", content = @Content(schema = @Schema(implementation = WebinarListPageResponse.class))),

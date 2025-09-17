@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import uz.consortgroup.core.api.v1.dto.webinar.enumeration.LanguageCode;
+import uz.consortgroup.core.api.v1.dto.webinar.enumeration.WebinarCategory;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,8 +38,9 @@ public class Webinar {
     @Column(name = "title", nullable = false, length = 100)
     private String title;
 
-    @Column(name = "category", nullable = false, length = 100)
-    private String category;
+    @Column(name = "category", nullable = false, length = 50)
+    @Enumerated(EnumType.STRING)
+    private WebinarCategory category;
 
     @Column(name = "preview_url")
     private String previewUrl;
