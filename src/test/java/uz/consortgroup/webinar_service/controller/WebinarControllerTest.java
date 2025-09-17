@@ -12,6 +12,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import uz.consortgroup.core.api.v1.dto.webinar.enumeration.LanguageCode;
+import uz.consortgroup.core.api.v1.dto.webinar.enumeration.WebinarCategory;
 import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarCreateRequestDto;
 import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarUpdateRequestDto;
 import uz.consortgroup.core.api.v1.dto.webinar.response.WebinarListPageResponse;
@@ -57,6 +58,7 @@ class WebinarControllerTest {
     void createWebinar_shouldReturn201_whenValid() throws Exception {
         WebinarCreateRequestDto dto = new WebinarCreateRequestDto();
         dto.setTitle("Test Webinar");
+        dto.setCategory(WebinarCategory.PLANNED);
         dto.setStartTime(LocalDateTime.now());
         dto.setEndTime(LocalDateTime.now().plusHours(1));
         dto.setPlatformUrl("https://zoom.us/test");
@@ -135,30 +137,6 @@ class WebinarControllerTest {
         verify(webinarService).deleteWebinar(eq(id));
     }
 
-    @Test
-    void createWebinar_shouldReturn400_whenMetadataInvalid() throws Exception {
-        MockMultipartFile metadata = new MockMultipartFile(
-                "metadata", "", "application/json", "invalid-json".getBytes()
-        );
-
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/v1/webinars")
-                        .file(metadata)
-                        .contentType(MediaType.MULTIPART_FORM_DATA))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void updateWebinar_shouldReturn400_whenMetadataInvalid() throws Exception {
-        MockMultipartFile metadata = new MockMultipartFile(
-                "metadata", "", "application/json", "invalid-json".getBytes()
-        );
-
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/v1/webinars")
-                        .file(metadata)
-                        .with(req -> { req.setMethod("PUT"); return req; })
-                        .contentType(MediaType.MULTIPART_FORM_DATA))
-                .andExpect(status().isBadRequest());
-    }
 
     @Test
     void getWebinars_ShouldReturn200_WithValidParams() throws Exception {

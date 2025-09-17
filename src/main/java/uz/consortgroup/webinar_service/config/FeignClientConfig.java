@@ -1,4 +1,4 @@
-package uz.consortgroup.webinar_service.config.properties;
+package uz.consortgroup.webinar_service.config;
 
 import feign.RequestInterceptor;
 import org.springframework.boot.autoconfigure.http.HttpMessageConverters;

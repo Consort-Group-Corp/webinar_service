@@ -1,4 +1,4 @@
-package uz.consortgroup.webinar_service.config.properties;
+package uz.consortgroup.webinar_service.config;
 
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
