@@ -64,7 +64,7 @@ class WebinarControllerTest {
         dto.setPlatformUrl("https://zoom.us/test");
         dto.setCourseId(UUID.randomUUID());
         dto.setLanguageCode(LanguageCode.RU);
-        dto.setParticipants(List.of(UUID.randomUUID().toString()));
+        dto.setParticipants(List.of("user1@example.com", "user2@example.com"));
 
         WebinarResponseDto response = new WebinarResponseDto();
         response.setId(UUID.randomUUID());

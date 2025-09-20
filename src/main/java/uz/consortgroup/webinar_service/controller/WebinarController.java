@@ -1,7 +1,5 @@
 package uz.consortgroup.webinar_service.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -19,7 +17,16 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarCreateRequestDto;
 import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarUpdateRequestDto;
@@ -41,7 +48,6 @@ public class WebinarController {
                     "Расширения: jpg, jpeg, png. Максимальный размер: 100MB.";
 
     private final WebinarService webinarService;
-    private final ObjectMapper objectMapper;
 
     @Operation(
             summary = "Создать вебинар",
@@ -154,7 +160,7 @@ public class WebinarController {
             summary = "Удалить вебинар",
             description = "Удаляет вебинар по ID.",
             parameters = {
-                    @Parameter(name = "webinarId", description = "UUID вебинара", required = true, example = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+                    @Parameter(name = "webinarId", description = "UUID вебинара", required = true, example = "9c7bfe69-920f-43e2-af84-f6bfc4b8cd83")
             },
             responses = {
                     @ApiResponse(responseCode = "200", description = "Удалено"),
