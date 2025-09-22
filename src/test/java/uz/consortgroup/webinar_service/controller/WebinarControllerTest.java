@@ -3,7 +3,6 @@ package uz.consortgroup.webinar_service.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
@@ -18,8 +17,6 @@ import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarUpdateRequestDto;
 import uz.consortgroup.core.api.v1.dto.webinar.response.WebinarListPageResponse;
 import uz.consortgroup.core.api.v1.dto.webinar.response.WebinarResponseDto;
 import uz.consortgroup.webinar_service.service.webinar.WebinarService;
-import uz.consortgroup.webinar_service.util.AuthTokenFilter;
-import uz.consortgroup.webinar_service.util.JwtUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -36,7 +33,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = WebinarController.class)
-@AutoConfigureMockMvc(addFilters = false)
 class WebinarControllerTest {
 
     @Autowired
@@ -44,12 +40,6 @@ class WebinarControllerTest {
 
     @MockitoBean
     private WebinarService webinarService;
-
-    @MockitoBean
-    private JwtUtils jwtUtils;
-
-    @MockitoBean
-    private AuthTokenFilter authTokenFilter;
 
     @Autowired
     private ObjectMapper objectMapper;

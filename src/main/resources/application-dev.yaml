@@ -54,10 +54,6 @@ app:
   preview:
     base-url: /api/v1/webinars/preview/
 
-security:
-  token: ${SECURITY_TOKEN}
-  expiration: 3600000
-
 storage:
   base-dir: uploads
   image:
