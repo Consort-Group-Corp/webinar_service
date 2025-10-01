@@ -45,7 +45,11 @@ public class WebinarController {
             description = """
                     Создает вебинар.
                     Принимает multipart/form-data: JSON-метаданные в части 'metadata' и опциональный файл превью в части 'file'.
-                    Поле participants — массив идентификаторов слушателей: email ИЛИ 14-значный ПИНФЛ.
+                    
+                    Поле participants — МАССИВ идентификаторов слушателей: каждый элемент либо email, либо 14-значный ПИНФЛ.
+                    Каждый идентификатор — отдельным элементом массива (через запятую в интерфейсе), 
+                    а не одной строкой вида "email / pinfl".
+                    
                     Флаг onlyCourseParticipants — если true, добавлять можно только реально записанных на указанный курс.
                     Время передается в формате LocalDateTime без таймзоны: yyyy-MM-dd'T'HH:mm:ss.
                     """,
@@ -106,6 +110,8 @@ public class WebinarController {
             description = """
                     Обновляет вебинар.
                     Принимает multipart/form-data: JSON-метаданные в части 'metadata' (WebinarUpdateRequestDto) и опциональный файл превью в части 'file'.
+                    
+                    Поле participants — МАССИВ идентификаторов (email или 14-значный ПИНФЛ), каждый — отдельным элементом.
                     Если participants=null — состав участников не изменяется.
                     Если participants=[] — состав будет очищен.
                     Если onlyCourseParticipants=true — в состав допустимы только записанные на курс.
@@ -166,7 +172,7 @@ public class WebinarController {
             summary = "Удалить вебинар",
             description = "Удаляет вебинар по ID.",
             parameters = {
-                    @Parameter(name = "webinarId", description = "UUID вебинара", required = true, example = "9c7bfe69-920f-43e2-af84-f6bfc4b8cd83")
+                    @Parameter(name = "webinarId", description = "UUID вебинара", required = true, example = "9c7bfe69-920f-43e2-af84-f6бfc4b8cd83")
             },
             responses = {
                     @ApiResponse(responseCode = "200", description = "Удалено"),
