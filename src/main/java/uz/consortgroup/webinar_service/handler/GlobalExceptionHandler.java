@@ -10,14 +10,17 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import uz.consortgroup.webinar_service.exception.ApiError;
 import uz.consortgroup.webinar_service.exception.CourseNotFoundException;
 import uz.consortgroup.webinar_service.exception.FileStorageException;
+import uz.consortgroup.webinar_service.exception.NotEnrolledParticipantsException;
 import uz.consortgroup.webinar_service.exception.ResourceNotFoundException;
 import uz.consortgroup.webinar_service.exception.UnauthorizedException;
 import uz.consortgroup.webinar_service.exception.UserNotFoundException;
 import uz.consortgroup.webinar_service.exception.WebinarNotFoundException;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
@@ -37,6 +40,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), "Illegal state", ex.getMessage()));
     }
+
+    @ExceptionHandler(NotEnrolledParticipantsException.class)
+    public ResponseEntity<ApiError> handleNotEnrolled(NotEnrolledParticipantsException ex) {
+        ApiError body = ApiError.builder()
+                .code("NOT_ENROLLED")
+                .message(ex.getMessage())
+                .details(Map.of(
+                        "courseId", ex.getCourseId(),
+                        "notEnrolled", ex.getNotEnrolled()
+                ))
+                .build();
+        return ResponseEntity.unprocessableEntity().body(body); // 422
+    }
+
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {

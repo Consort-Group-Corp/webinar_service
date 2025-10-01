@@ -21,6 +21,7 @@ import uz.consortgroup.core.api.v1.dto.webinar.response.WebinarResponseDto;
 import uz.consortgroup.webinar_service.client.UserClient;
 import uz.consortgroup.webinar_service.entity.Webinar;
 import uz.consortgroup.webinar_service.entity.WebinarParticipant;
+import uz.consortgroup.webinar_service.exception.NotEnrolledParticipantsException;
 import uz.consortgroup.webinar_service.exception.WebinarNotFoundException;
 import uz.consortgroup.webinar_service.mapper.WebinarMapper;
 import uz.consortgroup.webinar_service.repository.WebinarRepository;
@@ -31,13 +32,7 @@ import uz.consortgroup.webinar_service.service.strategy.WebinarCategoryStrategyF
 import uz.consortgroup.webinar_service.validator.CourseValidationServiceImpl;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -68,7 +63,8 @@ public class WebinarServiceImpl implements WebinarService {
         UserRole currentRole = authContext.getCurrentUserRole();
         courseValidationService.assertCourseVisibleForUser(dto.getCourseId(), currentUserId, currentRole);
 
-        String previewFilename = null, previewUrl = null;
+        String previewFilename = null;
+        String previewUrl = null;
         if (file != null && !file.isEmpty()) {
             previewFilename = fileStorageService.store(file);
             previewUrl = previewBaseUrl + previewFilename;
@@ -78,15 +74,19 @@ public class WebinarServiceImpl implements WebinarService {
         webinar.setOnlyCourseParticipants(Boolean.TRUE.equals(dto.getOnlyCourseParticipants()));
         webinar = webinarRepository.save(webinar);
 
-
         List<String> identifiers = dto.getParticipants() == null ? List.of() : new ArrayList<>(dto.getParticipants());
         if (!identifiers.isEmpty()) {
-            List<UUID> addedUserIds = webinarParticipantService.addParticipants(webinar, identifiers);
+            Map<UUID, String> added = webinarParticipantService.addParticipants(webinar, identifiers);
 
-            if (Boolean.TRUE.equals(dto.getOnlyCourseParticipants()) && !addedUserIds.isEmpty()) {
-                Set<UUID> enrolled = courseValidationService.filterEnrolled(dto.getCourseId(), Set.copyOf(addedUserIds));
-                if (enrolled.size() != addedUserIds.size()) {
-                    throw new IllegalArgumentException("Some participants are not enrolled in the selected course");
+            if (Boolean.TRUE.equals(dto.getOnlyCourseParticipants()) && !added.isEmpty()) {
+                Set<UUID> enrolled = courseValidationService.filterEnrolled(dto.getCourseId(), added.keySet());
+                List<String> notEnrolled = added.entrySet().stream()
+                        .filter(e -> !enrolled.contains(e.getKey()))
+                        .map(Map.Entry::getValue)
+                        .toList();
+
+                if (!notEnrolled.isEmpty()) {
+                    throw new NotEnrolledParticipantsException(dto.getCourseId(), notEnrolled);
                 }
             }
         }
@@ -111,7 +111,9 @@ public class WebinarServiceImpl implements WebinarService {
         String newFilename = webinar.getPreviewFilename();
         String newUrl = webinar.getPreviewUrl();
         if (file != null && !file.isEmpty()) {
-            if (webinar.getPreviewFilename() != null) fileStorageService.delete(webinar.getPreviewFilename());
+            if (webinar.getPreviewFilename() != null) {
+                fileStorageService.delete(webinar.getPreviewFilename());
+            }
             newFilename = fileStorageService.store(file);
             newUrl = previewBaseUrl + newFilename;
         }
@@ -120,15 +122,20 @@ public class WebinarServiceImpl implements WebinarService {
         webinar.setOnlyCourseParticipants(Boolean.TRUE.equals(dto.getOnlyCourseParticipants()));
         webinarRepository.save(webinar);
 
-
         if (dto.getParticipants() != null) {
-            List<WebinarParticipant> newParts = webinarParticipantService.updateParticipants(webinar, new ArrayList<>(dto.getParticipants()));
+            Map<UUID, String> newParts = webinarParticipantService.updateParticipants(
+                    webinar, new ArrayList<>(dto.getParticipants())
+            );
 
             if (Boolean.TRUE.equals(dto.getOnlyCourseParticipants()) && !newParts.isEmpty()) {
-                Set<UUID> ids = newParts.stream().map(WebinarParticipant::getUserId).collect(Collectors.toSet());
-                Set<UUID> enrolled = courseValidationService.filterEnrolled(dto.getCourseId(), ids);
-                if (enrolled.size() != ids.size()) {
-                    throw new IllegalArgumentException("Some participants are not enrolled in the selected course");
+                Set<UUID> enrolled = courseValidationService.filterEnrolled(dto.getCourseId(), newParts.keySet());
+                List<String> notEnrolled = newParts.entrySet().stream()
+                        .filter(e -> !enrolled.contains(e.getKey()))
+                        .map(Map.Entry::getValue)
+                        .toList();
+
+                if (!notEnrolled.isEmpty()) {
+                    throw new NotEnrolledParticipantsException(dto.getCourseId(), notEnrolled);
                 }
             }
 
@@ -138,7 +145,6 @@ public class WebinarServiceImpl implements WebinarService {
 
         return webinarMapper.toDto(webinar);
     }
-
 
     @Override
     @Transactional
@@ -151,8 +157,7 @@ public class WebinarServiceImpl implements WebinarService {
             log.info("Deleted preview: {}", webinar.getPreviewFilename());
         }
 
-
-        if (!webinar.getParticipants().isEmpty()) {
+        if (webinar.getParticipants() != null && !webinar.getParticipants().isEmpty()) {
             webinar.getParticipants().clear();
         }
         log.info("Cleared participants for webinar: {}", webinarId);
@@ -167,7 +172,6 @@ public class WebinarServiceImpl implements WebinarService {
         UserRole role = authContext.getCurrentUserRole();
 
         WebinarCategoryStrategy strategy = webinarCategoryStrategyFactory.getStrategy(category);
-
         Specification<Webinar> spec = strategy.getSpecification(userId, role);
 
         Pageable sortedPageable = PageRequest.of(
@@ -185,8 +189,7 @@ public class WebinarServiceImpl implements WebinarService {
                     .collect(Collectors.toSet());
 
             userMap = userClient.getShortInfoBulk(new ArrayList<>(tutorIds));
-
-    }
+        }
 
         final Map<UUID, UserShortInfoResponseDto> finalUserMap = userMap;
 
@@ -199,10 +202,11 @@ public class WebinarServiceImpl implements WebinarService {
                             .startTime(webinar.getStartTime())
                             .endTime(webinar.getEndTime())
                             .platformUrl(webinar.getPlatformUrl())
-                            .previewUrl(webinar.getPreviewFilename())
+                            .previewUrl(webinar.getPreviewUrl())
                             .tutors(List.of(tutor))
                             .build();
-                }).toList();
+                })
+                .toList();
 
         String message = page.isEmpty()
                 ? messageSource.getMessage("webinar.empty", null, Locale.forLanguageTag(lang))

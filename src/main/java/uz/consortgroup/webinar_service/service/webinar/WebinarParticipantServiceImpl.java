@@ -15,13 +15,8 @@ import uz.consortgroup.webinar_service.entity.WebinarParticipant;
 import uz.consortgroup.webinar_service.exception.UserNotFoundException;
 import uz.consortgroup.webinar_service.repository.WebinarParticipantRepository;
 
-
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -33,10 +28,22 @@ public class WebinarParticipantServiceImpl implements WebinarParticipantService 
     private final UserClient userClient;
 
     @Override
-    public List<UUID> addParticipants(Webinar webinar, List<String> identifiers) {
+    public Map<UUID, String> addParticipants(Webinar webinar, List<String> identifiers) {
         log.info("Adding participants to webinar {} by {} identifiers (email or pinfl)", webinar.getId(), identifiers.size());
 
-        List<UserSearchRequest> queries = identifiers.stream()
+        List<String> distinct = identifiers.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .toList();
+
+        if (distinct.isEmpty()) {
+            log.info("No valid identifiers provided.");
+            return Map.of();
+        }
+
+        List<UserSearchRequest> queries = distinct.stream()
                 .map(id -> UserSearchRequest.builder().query(id).build())
                 .toList();
 
@@ -44,27 +51,37 @@ public class WebinarParticipantServiceImpl implements WebinarParticipantService 
                 .queries(queries)
                 .build();
 
-        List<UserSearchResponse> users = userClient.searchUsersBulk(request).getUsers();
-
+        UserBulkSearchResponse bulk = userClient.searchUsersBulk(request);
+        List<UserSearchResponse> users = bulk.getUsers();
         log.info("Found {} matching users from user service", users.size());
 
         List<UserSearchResponse> filtered = users.stream()
                 .filter(user -> user.getRole() != UserRole.GUEST_USER)
                 .toList();
 
-        Set<UUID> newUserIds = filtered.stream()
-                .map(UserSearchResponse::getUserId)
-                .collect(Collectors.toSet());
+        Map<UUID, String> idToIdentifier = filtered.stream()
+                .collect(Collectors.toMap(
+                        UserSearchResponse::getUserId,
+                        u -> {
+                            String email = u.getEmail();
+                            String pinfl = u.getPinfl();
+                            if (email != null && distinct.contains(email)) return email;
+                            if (pinfl != null && distinct.contains(pinfl)) return pinfl;
+                            return email != null ? email : pinfl;
+                        },
+                        (a, b) -> a
+                ));
 
         Set<UUID> existingUserIds = webinarParticipantRepository.findByWebinarId(webinar.getId()).stream()
                 .map(WebinarParticipant::getUserId)
                 .collect(Collectors.toSet());
 
+        Set<UUID> newUserIds = new HashSet<>(idToIdentifier.keySet());
         newUserIds.removeAll(existingUserIds);
 
         if (newUserIds.isEmpty()) {
             log.info("No new participants to add.");
-            return List.of();
+            return Map.of();
         }
 
         List<WebinarParticipant> participants = newUserIds.stream()
@@ -76,14 +93,16 @@ public class WebinarParticipantServiceImpl implements WebinarParticipantService 
                 .toList();
 
         webinarParticipantRepository.saveAll(participants);
-
         log.info("Successfully added {} new participants", participants.size());
-        return newUserIds.stream().toList();
+
+        return idToIdentifier.entrySet().stream()
+                .filter(e -> newUserIds.contains(e.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     @Override
     @Transactional
-    public List<WebinarParticipant> updateParticipants(Webinar webinar, List<String> identifiers) {
+    public Map<UUID, String> updateParticipants(Webinar webinar, List<String> identifiers) {
         log.info("Updating participants for webinar: {}", webinar.getId());
 
         List<WebinarParticipant> existing = webinarParticipantRepository.findByWebinarId(webinar.getId());
@@ -93,31 +112,33 @@ public class WebinarParticipantServiceImpl implements WebinarParticipantService 
             log.debug("Deleted {} existing participants", existing.size());
         }
 
-        List<String> distinctIdentifiers = identifiers.stream()
-                .filter(Objects::nonNull)
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .distinct()
-                .toList();
+        List<String> distinct = identifiers == null ? List.of() :
+                identifiers.stream()
+                        .filter(Objects::nonNull)
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .distinct()
+                        .toList();
 
-        if (distinctIdentifiers.isEmpty()) {
+        if (distinct.isEmpty()) {
             log.warn("No valid identifiers provided for webinar: {}", webinar.getId());
-            return List.of();
+            return Map.of();
         }
 
-        List<UserSearchRequest> queries = distinctIdentifiers.stream()
+        List<UserSearchRequest> queries = distinct.stream()
                 .map(id -> UserSearchRequest.builder().query(id).build())
                 .toList();
 
-        UserBulkSearchRequest request = new UserBulkSearchRequest();
-        request.setQueries(queries);
+        UserBulkSearchRequest request = UserBulkSearchRequest.builder()
+                .queries(queries)
+                .build();
 
         UserBulkSearchResponse response = userClient.searchUsersBulk(request);
 
         Map<String, UUID> identifierToUserId = response.getUsers().stream()
                 .collect(Collectors.toMap(
                         user -> {
-                            String key = user.getEmail() != null && distinctIdentifiers.contains(user.getEmail())
+                            String key = user.getEmail() != null && distinct.contains(user.getEmail())
                                     ? user.getEmail()
                                     : user.getPinfl();
                             if (key == null) {
@@ -125,29 +146,32 @@ public class WebinarParticipantServiceImpl implements WebinarParticipantService 
                             }
                             return key;
                         },
-                        UserSearchResponse::getUserId
+                        UserSearchResponse::getUserId,
+                        (a, b) -> a
                 ));
 
-        List<WebinarParticipant> newParticipants = distinctIdentifiers.stream()
+        Map<UUID, String> idToIdentifier = identifierToUserId.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey, (a, b) -> a));
+
+        List<WebinarParticipant> toSave = distinct.stream()
                 .map(identifier -> {
                     UUID userId = identifierToUserId.get(identifier);
                     if (userId == null) {
                         throw new UserNotFoundException("User not found by identifier: " + identifier);
                     }
-                    WebinarParticipant participant = new WebinarParticipant();
-                    participant.setWebinar(webinar);
-                    participant.setUserId(userId);
-                    participant.setCreatedAt(LocalDateTime.now());
-                    return participant;
+                    return WebinarParticipant.builder()
+                            .webinar(webinar)
+                            .userId(userId)
+                            .createdAt(LocalDateTime.now())
+                            .build();
                 })
                 .toList();
 
-        webinarParticipantRepository.saveAll(newParticipants);
-        log.info("Added {} participants to webinar: {}", newParticipants.size(), webinar.getId());
+        webinarParticipantRepository.saveAll(toSave);
+        log.info("Added {} participants to webinar: {}", toSave.size(), webinar.getId());
 
-        return newParticipants;
+        return idToIdentifier;
     }
-
 
     @Override
     public List<WebinarParticipant> getParticipantsByWebinarId(UUID webinarId) {
@@ -155,4 +179,3 @@ public class WebinarParticipantServiceImpl implements WebinarParticipantService 
         return webinarParticipantRepository.findByWebinarId(webinarId);
     }
 }
-
