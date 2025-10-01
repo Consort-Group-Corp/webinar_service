@@ -17,16 +17,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarCreateRequestDto;
 import uz.consortgroup.core.api.v1.dto.webinar.request.WebinarUpdateRequestDto;
@@ -51,14 +42,22 @@ public class WebinarController {
 
     @Operation(
             summary = "Создать вебинар",
-            description = "Создает вебинар. Принимает multipart/form-data: JSON-метаданные в части 'metadata' и опциональный файл превью в части 'file'.",
+            description = """
+                    Создает вебинар.
+                    Принимает multipart/form-data: JSON-метаданные в части 'metadata' и опциональный файл превью в части 'file'.
+                    Поле participants — массив идентификаторов слушателей: email ИЛИ 14-значный ПИНФЛ.
+                    Флаг onlyCourseParticipants — если true, добавлять можно только реально записанных на указанный курс.
+                    Время передается в формате LocalDateTime без таймзоны: yyyy-MM-dd'T'HH:mm:ss.
+                    """,
             responses = {
                     @ApiResponse(responseCode = "201", description = "Создано", content = @Content(schema = @Schema(implementation = WebinarResponseDto.class))),
-                    @ApiResponse(responseCode = "400", description = "Ошибка валидации"),
+                    @ApiResponse(responseCode = "400", description = "Ошибка валидации ввода"),
                     @ApiResponse(responseCode = "401", description = "Неавторизован"),
                     @ApiResponse(responseCode = "403", description = "Нет доступа"),
+                    @ApiResponse(responseCode = "404", description = "Курс не найден"),
+                    @ApiResponse(responseCode = "409", description = "Конфликт данных"),
                     @ApiResponse(responseCode = "413", description = "Размер файла превышает лимит (100MB)"),
-                    @ApiResponse(responseCode = "415", description = "Неподдерживаемый тип файла (разрешены: image/jpeg, image/png)")
+                    @ApiResponse(responseCode = "415", description = "Неподдерживаемый тип файла (image/jpeg, image/png)")
             }
     )
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -75,13 +74,14 @@ public class WebinarController {
                                     value = """
                                             {
                                               "title": "Введение в Spring Boot",
-                                              "category": "planned",
+                                              "category": "PLANNED",
                                               "startTime": "2025-08-20T10:00:00",
                                               "endTime": "2025-08-20T11:00:00",
                                               "platformUrl": "https://meet.example.com/room-123",
                                               "courseId": "df25826b-3c90-4e22-a820-224d4cfb85fa",
                                               "languageCode": "RU",
-                                              "participants": ["user1@example.com","user2@example.com"]
+                                              "onlyCourseParticipants": false,
+                                              "participants": ["user1@example.com","12345678901234"]
                                             }
                                             """
                             )
@@ -103,15 +103,21 @@ public class WebinarController {
 
     @Operation(
             summary = "Обновить вебинар",
-            description = "Обновляет вебинар. Принимает multipart/form-data: JSON-метаданные в части 'metadata' (WebinarUpdateRequestDto) и опциональный файл превью в части 'file'.",
+            description = """
+                    Обновляет вебинар.
+                    Принимает multipart/form-data: JSON-метаданные в части 'metadata' (WebinarUpdateRequestDto) и опциональный файл превью в части 'file'.
+                    Если participants=null — состав участников не изменяется.
+                    Если participants=[] — состав будет очищен.
+                    Если onlyCourseParticipants=true — в состав допустимы только записанные на курс.
+                    """,
             responses = {
                     @ApiResponse(responseCode = "200", description = "OK", content = @Content(schema = @Schema(implementation = WebinarResponseDto.class))),
-                    @ApiResponse(responseCode = "400", description = "Ошибка валидации"),
+                    @ApiResponse(responseCode = "400", description = "Ошибка валидации ввода"),
                     @ApiResponse(responseCode = "401", description = "Не авторизован"),
                     @ApiResponse(responseCode = "403", description = "Нет доступа"),
-                    @ApiResponse(responseCode = "404", description = "Вебинар не найден"),
+                    @ApiResponse(responseCode = "404", description = "Вебинар/курс не найден"),
                     @ApiResponse(responseCode = "413", description = "Размер файла превышает лимит (100MB)"),
-                    @ApiResponse(responseCode = "415", description = "Неподдерживаемый тип файла (разрешены: image/jpeg, image/png)")
+                    @ApiResponse(responseCode = "415", description = "Неподдерживаемый тип файла (image/jpeg, image/png)")
             }
     )
     @PutMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -129,13 +135,14 @@ public class WebinarController {
                                             {
                                               "id": "9c7bfe69-920f-43e2-af84-f6bfc4b8cd83",
                                               "title": "Spring Boot: продвинутые темы",
-                                              "category": "planned",
+                                              "category": "PLANNED",
                                               "startTime": "2025-08-22T10:00:00",
                                               "endTime": "2025-08-22T11:30:00",
                                               "platformUrl": "https://meet.example.com/room-789",
                                               "courseId": "df25826b-3c90-4e22-a820-224d4cfb85fa",
                                               "languageCode": "RU",
-                                              "participants": ["user3@example.com"]
+                                              "onlyCourseParticipants": true,
+                                              "participants": ["user3@example.com","12345678901234"]
                                             }
                                             """
                             )
@@ -152,7 +159,6 @@ public class WebinarController {
             )
             @RequestPart(value = "file", required = false) MultipartFile file
     ) {
-
         return webinarService.updateWebinar(metadataJson, file);
     }
 
@@ -179,10 +185,10 @@ public class WebinarController {
             summary = "Список вебинаров (пагинация)",
             description = """
                     Возвращает список вебинаров по категории и языку с пагинацией.
-                    Параметры пагинации: page (0..N), size, sort (например, sort=startTime,desc)
+                    Параметры пагинации: page (0..N), size, sort (например, sort=startTime,desc).
                     """,
             parameters = {
-                    @Parameter(name = "category", required = true, description = "Категория вебинара", example = "planned"),
+                    @Parameter(name = "category", required = true, description = "Категория вебинара (например: planned, past)", example = "planned"),
                     @Parameter(name = "lang", description = "Код языка интерфейса", example = "ru",
                             schema = @Schema(allowableValues = {"ru", "en", "uz", "uzk", "kaa"}))
             },
