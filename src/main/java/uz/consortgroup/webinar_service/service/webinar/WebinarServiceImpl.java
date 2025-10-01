@@ -28,7 +28,7 @@ import uz.consortgroup.webinar_service.security.AuthContext;
 import uz.consortgroup.webinar_service.service.storage.FileStorageService;
 import uz.consortgroup.webinar_service.service.strategy.WebinarCategoryStrategy;
 import uz.consortgroup.webinar_service.service.strategy.WebinarCategoryStrategyFactory;
-import uz.consortgroup.webinar_service.validator.CourseValidationService;
+import uz.consortgroup.webinar_service.validator.CourseValidationServiceImpl;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -50,7 +50,7 @@ public class WebinarServiceImpl implements WebinarService {
     private final FileStorageService fileStorageService;
     private final AuthContext authContext;
     private final WebinarParticipantService webinarParticipantService;
-    private final CourseValidationService courseValidationService;
+    private final CourseValidationServiceImpl courseValidationService;
     private final MessageSource messageSource;
     private final UserClient userClient;
     private final WebinarCategoryStrategyFactory webinarCategoryStrategyFactory;
@@ -62,36 +62,37 @@ public class WebinarServiceImpl implements WebinarService {
     @Transactional
     public WebinarResponseDto createWebinar(WebinarCreateRequestDto dto, MultipartFile file) {
         log.info("Starting webinar creation: {}", dto.getTitle());
+
         courseValidationService.validateCourseExists(dto.getCourseId());
+        UUID currentUserId = authContext.getCurrentUserId();
+        UserRole currentRole = authContext.getCurrentUserRole();
+        courseValidationService.assertCourseVisibleForUser(dto.getCourseId(), currentUserId, currentRole);
 
-        String previewFilename = null;
-        String previewUrl = null;
-
+        String previewFilename = null, previewUrl = null;
         if (file != null && !file.isEmpty()) {
             previewFilename = fileStorageService.store(file);
-            log.info("Got file: name={}, size={}", file.getOriginalFilename(), file.getSize());
             previewUrl = previewBaseUrl + previewFilename;
-            log.debug("Preview stored: {}", previewUrl);
         }
 
         Webinar webinar = buildWebinar(dto, previewFilename, previewUrl);
+        webinar.setOnlyCourseParticipants(Boolean.TRUE.equals(dto.getOnlyCourseParticipants()));
         webinar = webinarRepository.save(webinar);
-        log.info("Webinar saved with ID: {}", webinar.getId());
 
-        List<String> identifiers = dto.getParticipants();
-        log.debug("Adding participants: count={}", identifiers.size());
-        List<UUID> addedUserIds = webinarParticipantService.addParticipants(webinar, identifiers);
-        log.info("Added {} participants", addedUserIds.size());
 
-        webinarRepository.flush();
-        log.debug("Database flush completed");
+        List<String> identifiers = dto.getParticipants() == null ? List.of() : new ArrayList<>(dto.getParticipants());
+        if (!identifiers.isEmpty()) {
+            List<UUID> addedUserIds = webinarParticipantService.addParticipants(webinar, identifiers);
+
+            if (Boolean.TRUE.equals(dto.getOnlyCourseParticipants()) && !addedUserIds.isEmpty()) {
+                Set<UUID> enrolled = courseValidationService.filterEnrolled(dto.getCourseId(), Set.copyOf(addedUserIds));
+                if (enrolled.size() != addedUserIds.size()) {
+                    throw new IllegalArgumentException("Some participants are not enrolled in the selected course");
+                }
+            }
+        }
 
         webinar.setParticipants(webinarParticipantService.getParticipantsByWebinarId(webinar.getId()));
-        log.debug("Loaded participants: {}", webinar.getParticipants().size());
-
-        WebinarResponseDto response = webinarMapper.toDto(webinar);
-        log.info("Webinar creation completed: ID={}", webinar.getId());
-        return response;
+        return webinarMapper.toDto(webinar);
     }
 
     @Override
@@ -103,35 +104,41 @@ public class WebinarServiceImpl implements WebinarService {
                 .orElseThrow(() -> new WebinarNotFoundException("Webinar not found with id: " + dto.getId()));
 
         courseValidationService.validateCourseExists(dto.getCourseId());
+        UUID currentUserId = authContext.getCurrentUserId();
+        UserRole currentRole = authContext.getCurrentUserRole();
+        courseValidationService.assertCourseVisibleForUser(dto.getCourseId(), currentUserId, currentRole);
 
         String newFilename = webinar.getPreviewFilename();
         String newUrl = webinar.getPreviewUrl();
-
         if (file != null && !file.isEmpty()) {
-            if (webinar.getPreviewFilename() != null) {
-                fileStorageService.delete(webinar.getPreviewFilename());
-                log.info("Old preview deleted: {}", webinar.getPreviewFilename());
-            }
+            if (webinar.getPreviewFilename() != null) fileStorageService.delete(webinar.getPreviewFilename());
             newFilename = fileStorageService.store(file);
             newUrl = previewBaseUrl + newFilename;
-            log.info("New preview stored: {}", newUrl);
         }
 
         updateWebinarFields(dto, webinar, newFilename, newUrl);
-
+        webinar.setOnlyCourseParticipants(Boolean.TRUE.equals(dto.getOnlyCourseParticipants()));
         webinarRepository.save(webinar);
-        log.info("Webinar updated: {}", webinar.getId());
 
-        List<WebinarParticipant> newParticipants = webinarParticipantService.updateParticipants(webinar, dto.getParticipants());
-        log.info("Participants updated: {}", newParticipants.size());
 
-        webinar.getParticipants().clear();
-        webinar.getParticipants().addAll(webinarParticipantService.getParticipantsByWebinarId(webinar.getId()));
+        if (dto.getParticipants() != null) {
+            List<WebinarParticipant> newParts = webinarParticipantService.updateParticipants(webinar, new ArrayList<>(dto.getParticipants()));
 
-        WebinarResponseDto response = webinarMapper.toDto(webinar);
-        log.info("Webinar update completed: ID={}", webinar.getId());
-        return response;
+            if (Boolean.TRUE.equals(dto.getOnlyCourseParticipants()) && !newParts.isEmpty()) {
+                Set<UUID> ids = newParts.stream().map(WebinarParticipant::getUserId).collect(Collectors.toSet());
+                Set<UUID> enrolled = courseValidationService.filterEnrolled(dto.getCourseId(), ids);
+                if (enrolled.size() != ids.size()) {
+                    throw new IllegalArgumentException("Some participants are not enrolled in the selected course");
+                }
+            }
+
+            webinar.getParticipants().clear();
+            webinar.getParticipants().addAll(webinarParticipantService.getParticipantsByWebinarId(webinar.getId()));
+        }
+
+        return webinarMapper.toDto(webinar);
     }
+
 
     @Override
     @Transactional

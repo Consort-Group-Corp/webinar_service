@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS webinar_schema.webinars(
     platform_url TEXT NOT NULL,
     course_id UUID NOT NULL,
     language_code VARCHAR(50) NOT NULL,
+    only_course_participants BOOLEAN NOT NULL DEFAULT false,
     created_by UUID NOT NULL,
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITHOUT TIME ZONE
