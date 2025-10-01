@@ -30,13 +30,14 @@ import uz.consortgroup.webinar_service.security.AuthContext;
 import uz.consortgroup.webinar_service.service.storage.FileStorageService;
 import uz.consortgroup.webinar_service.service.strategy.WebinarCategoryStrategy;
 import uz.consortgroup.webinar_service.service.strategy.WebinarCategoryStrategyFactory;
-import uz.consortgroup.webinar_service.validator.CourseValidationService;
+import uz.consortgroup.webinar_service.validator.CourseValidationServiceImpl;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -68,7 +69,7 @@ class WebinarServiceImplTest {
     private WebinarParticipantService webinarParticipantService;
 
     @Mock
-    private CourseValidationService courseValidationService;
+    private CourseValidationServiceImpl courseValidationServiceImpl;
 
     @Mock
     private MultipartFile file;
@@ -96,7 +97,7 @@ class WebinarServiceImplTest {
         WebinarCreateRequestDto dto = WebinarCreateRequestDto.builder()
                 .title("Test Webinar")
                 .courseId(courseId)
-                .participants(List.of("email@example.com"))
+                .participants(Set.of("email@example.com"))
                 .startTime(LocalDateTime.now())
                 .endTime(LocalDateTime.now().plusHours(1))
                 .languageCode(LanguageCode.RU)
@@ -130,7 +131,7 @@ class WebinarServiceImplTest {
                 .id(webinarId)
                 .title("Updated")
                 .courseId(UUID.randomUUID())
-                .participants(List.of("email"))
+                .participants(Set.of("email"))
                 .startTime(LocalDateTime.now())
                 .endTime(LocalDateTime.now().plusHours(1))
                 .languageCode(LanguageCode.RU)

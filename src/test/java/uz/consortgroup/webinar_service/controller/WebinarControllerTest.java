@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -54,7 +55,7 @@ class WebinarControllerTest {
         dto.setPlatformUrl("https://zoom.us/test");
         dto.setCourseId(UUID.randomUUID());
         dto.setLanguageCode(LanguageCode.RU);
-        dto.setParticipants(List.of("user1@example.com", "user2@example.com"));
+        dto.setParticipants(Set.of("user1@example.com", "user2@example.com"));
 
         WebinarResponseDto response = new WebinarResponseDto();
         response.setId(UUID.randomUUID());
@@ -90,7 +91,7 @@ class WebinarControllerTest {
         dto.setPlatformUrl("https://zoom.us/updated");
         dto.setCourseId(UUID.randomUUID());
         dto.setLanguageCode(LanguageCode.RU);
-        dto.setParticipants(List.of(UUID.randomUUID().toString()));
+        dto.setParticipants(Set.of(UUID.randomUUID().toString()));
 
         WebinarResponseDto response = new WebinarResponseDto();
         response.setId(dto.getId());

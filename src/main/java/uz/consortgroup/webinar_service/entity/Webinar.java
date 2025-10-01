@@ -64,6 +64,9 @@ public class Webinar {
     @Enumerated(value = EnumType.STRING)
     private LanguageCode languageCode;
 
+    @Column(name = "only_course_participants", nullable = false)
+    private Boolean onlyCourseParticipants;
+
     @Column(name = "created_by", nullable = false)
     private UUID createdBy;
 
